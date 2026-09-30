@@ -1,0 +1,24 @@
+# ---------------------------------------------------------------------------
+# F5-TTS CLI dependencies
+#
+# ./setup.sh installs these. Note that f5-tts itself pulls in torch, torchaudio,
+# transformers, librosa, pydub, soundfile, vocos and huggingface_hub, so only
+# the extras this project needs are listed here.
+# ---------------------------------------------------------------------------
+
+# Speech synthesis engine
+f5-tts>=1.1.0
+
+# Reading books
+ebooklib>=0.18
+beautifulsoup4>=4.12.0
+PyMuPDF>=1.23.0
+
+# Downloading the model, and the audio for voice samples
+huggingface_hub>=0.24
+yt-dlp>=2024.1.0
+
+# Set by setup.sh with the right index for the machine; listed so that a plain
+# `pip install -r requirements.txt` also produces a working install.
+torch>=2.0.0
+torchaudio>=2.0.0

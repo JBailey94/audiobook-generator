@@ -1,0 +1,34 @@
+# Python environment created by ./setup.sh
+.venv/
+venv/
+
+# Models, downloaded on first run
+f5_model/
+
+# Derived data: prepared voice clips and cached transcriptions
+.cache/
+
+# Generated audio
+*.wav
+!voices/*.wav
+*_chapters/
+chunks/
+output.wav
+generated.wav
+
+# Downloads left behind by get_voice_sample.sh
+raw_audio_temp*
+voice_sample.wav
+source.*
+.*_concat.txt
+.*_chapters.txt
+
+# User's own books
+ebooks
+
+# Stray Windows metadata from zipped downloads
+*:Zone.Identifier
+
+# Python
+__pycache__/
+*.py[cod]
