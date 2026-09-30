@@ -104,32 +104,44 @@ def safe_filename(name: str, fallback: str = "Chapter") -> str:
 
 
 def available_voices() -> list[Path]:
-    """Bundled voice samples, ready to use with no setup."""
+    """Voice samples the user has placed in voices/."""
     if not VOICES_DIR.is_dir():
         return []
     exts = {".wav", ".flac", ".ogg", ".mp3", ".m4a"}
     return sorted(p for p in VOICES_DIR.iterdir() if p.suffix.lower() in exts)
 
 
+NO_VOICE_HELP = """\
+F5-TTS clones a voice, so it needs a recording of the voice you want to use:
+5-10 seconds of one person talking clearly, with no music.
+
+  Clone one from a YouTube video:
+    ./get_voice_sample.sh "https://www.youtube.com/watch?v=VIDEO_ID" 1:30 1:38 my_voice.wav
+
+  Or record one yourself (a phone voice memo is fine) and point at it:
+    ./run.sh -t "Hello there" -v my_voice.wav -o hello.wav
+
+  Drop a sample into voices/ and it is picked up automatically:
+    ./run.sh -t "Hello there" -o hello.wav
+"""
+
+
 def resolve_voice(path: str | None) -> Path:
-    """Pick the requested voice, or fall back to a bundled sample."""
+    """Resolve the voice sample to clone, guiding the user when none is given."""
     if path:
         resolved = Path(path).expanduser()
         if not resolved.is_file():
-            raise FileNotFoundError(
-                f"Voice sample not found: {resolved}\n"
-                "Run with --list-voices to see the bundled samples."
-            )
+            raise FileNotFoundError(f"Voice sample not found: {resolved}")
         return resolved
 
     voices = available_voices()
-    if not voices:
-        raise FileNotFoundError(
-            "No voice sample given and none are bundled in voices/.\n"
-            "Create one with ./get_voice_sample.sh <youtube-url> 0:30 0:37 my_voice.wav"
-        )
-    log(f"==> No voice given, using the bundled sample: {voices[0].name}")
-    return voices[0]
+    if voices:
+        log(f"==> No -v given, using the voice sample in voices/: {voices[0].name}")
+        return voices[0]
+
+    print("ERROR: no voice sample was given.\n")
+    print(NO_VOICE_HELP)
+    sys.exit(1)
 
 
 def confirm(question: str, assume_yes: bool) -> bool:
@@ -153,13 +165,14 @@ def confirm(question: str, assume_yes: bool) -> bool:
 def list_voices() -> int:
     voices = available_voices()
     if not voices:
-        print("No bundled voice samples were found in voices/.")
+        print("No voice samples are in voices/.")
+        print(NO_VOICE_HELP)
         return 1
-    print("Bundled voice samples (use with -v <name>):\n")
+    print("Voice samples in voices/ (these need no full path):\n")
     for voice in voices:
         duration = get_audio_duration(str(voice))
         print(f"  {voice.name:<28} {duration:5.1f}s")
-    print("\n  ./run.sh -t \"Hello there\" -v jason_sample.wav -o hello.wav")
+    print(f"\n  ./run.sh -t \"Hello there\" -v {voices[0].name} -o hello.wav")
     return 0
 
 
@@ -241,16 +254,27 @@ def run_doctor() -> int:
 
     print("Voices")
     voices = available_voices()
-    _check("Bundled voice samples", bool(voices), f"{len(voices)} found in voices/")
+    if voices:
+        _check("Voice samples", True, f"{len(voices)} found in voices/")
+    else:
+        _check(
+            "Voice samples",
+            False,
+            "none yet - create one with ./get_voice_sample.sh",
+            required=False,
+        )
     print()
 
     print("=" * 58)
     critical_ok = torch_ok and ffmpeg_ok and model_ok and engine_ok
     if critical_ok:
         print("  Ready to use.  Example:")
-        print('    ./run.sh -t "Hello, this is a test." -o hello.wav')
+        print('    ./run.sh -t "Hello, this is a test." -v my_voice.wav -o hello.wav')
         if not whisper_ok:
             print("    (first run will download the speech recognition model)")
+        if not voices:
+            print()
+            print("  No voice sample yet - get your own with ./get_voice_sample.sh")
     else:
         print("  Not ready yet.  Fix the [ERR] items above, or just run:")
         print("    ./setup.sh")
@@ -305,9 +329,8 @@ def _download_state(model_id: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def prepare_reference(args) -> tuple[str, float]:
+def prepare_reference(voice: Path) -> tuple[str, float]:
     """Normalise the voice sample and report its duration."""
-    voice = resolve_voice(args.voice)
     duration = get_audio_duration(str(voice))
 
     if duration <= 0:
@@ -347,7 +370,8 @@ def prepare_ref_text(args, ref_audio: str) -> str:
 
 def generate_from_text(args) -> int:
     """Generate audio from direct text input."""
-    ref_audio, _ = prepare_reference(args)
+    voice = resolve_voice(args.voice)
+    ref_audio, _ = prepare_reference(voice)
     ref_text = prepare_ref_text(args, ref_audio)
 
     model_dir = model_manager.ensure_model(
@@ -485,6 +509,9 @@ def show_dry_run(args) -> int:
 
 def generate_book(args) -> int:
     """Render a whole book to chapter files, then optionally an audiobook."""
+    # Resolve the voice before the estimate/confirmation so the user is told
+    # about it before committing to a long job.
+    voice = resolve_voice(args.voice)
     sections, total = plan_chunks(args)
     if not sections:
         print("ERROR: nothing to generate.")
@@ -499,7 +526,7 @@ def generate_book(args) -> int:
         print("Cancelled.")
         return 1
 
-    ref_audio, _ = prepare_reference(args)
+    ref_audio, _ = prepare_reference(voice)
     ref_text = prepare_ref_text(args, ref_audio)
 
     model_dir = model_manager.ensure_model(
@@ -680,20 +707,18 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Try it with the bundled voice sample
-  ./run.sh -t "Hello, this is a test." -o hello.wav
-
-  # Use your own voice
+  # Get a voice to clone out of a YouTube video, then speak with it
+  ./get_voice_sample.sh "https://www.youtube.com/watch?v=VIDEO_ID" 1:30 1:38 my_voice.wav
   ./run.sh -t "Hello" -v my_voice.wav -o hello.wav
 
   # Make an audiobook, one file per chapter, plus a single .m4b
-  ./run.sh -f book.epub -o book.m4b
+  ./run.sh -f book.epub -v my_voice.wav -o book.m4b
 
-  # Preview the plan first (no models needed)
+  # Preview the plan first (no models or voice sample needed)
   ./run.sh -f book.pdf --dry-run
 
   # Stop and continue later
-  ./run.sh -f book.epub -o book.m4b --resume --yes
+  ./run.sh -f book.epub -v my_voice.wav -o book.m4b --resume --yes
 
   # Check the installation
   ./run.sh --doctor
@@ -711,13 +736,15 @@ Examples:
     mode.add_argument(
         "--list-voices",
         action="store_true",
-        help="List the voice samples bundled in voices/",
+        help="List the voice samples in voices/",
     )
 
     parser.add_argument(
         "-v",
         "--voice",
-        help="Voice sample to clone (WAV/FLAC/OGG/MP3). Defaults to a bundled sample.",
+        help="Voice sample to clone (WAV/FLAC/OGG/MP3). A file in voices/ "
+        "can be given by name; otherwise it must be created first, e.g. "
+        "with ./get_voice_sample.sh.",
     )
     parser.add_argument(
         "-o",
@@ -886,6 +913,9 @@ def main() -> int:
             if args.dry_run:
                 return show_dry_run(args)
             return generate_book(args)
+        except FileNotFoundError as exc:
+            print(f"ERROR: {exc}")
+            return 1
         except KeyboardInterrupt:
             print("\n\nInterrupted. Re-run with --resume to continue where you stopped.")
             return 130

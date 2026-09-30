@@ -1,14 +1,16 @@
 # F5-TTS CLI
 
-Turn text into speech in **your own voice**. Point it at a PDF, EPUB, Markdown
-or text file and it produces an audiobook with one file per chapter plus a
-single `.m4b` you can load into any audiobook app.
+Turn text into speech in **your own voice**. The tool clones a voice from a
+short recording you provide — 5–10 seconds is enough. Point it at a PDF, EPUB,
+Markdown or text file and it produces an audiobook with one file per chapter
+plus a single `.m4b` you can load into any audiobook app.
 
-Everything is downloaded for you. There is nothing to configure.
+Everything else is downloaded for you. There is nothing to configure.
 
 ```bash
 ./setup.sh                                   # once: installs everything
-./run.sh -t "Hello, this is a test." -o hello.wav
+./get_voice_sample.sh "<video-url>" 1:30 1:38 my_voice.wav  # gets your voice
+./run.sh -t "Hello, this is a test." -v my_voice.wav -o hello.wav
 ```
 
 ---
@@ -17,13 +19,13 @@ Everything is downloaded for you. There is nothing to configure.
 
 - [What you need](#what-you-need)
 - [Setup](#setup)
+- [Get a voice to clone](#get-a-voice-to-clone)
 - [Your first audio clip](#your-first-audio-clip)
-- [Get a voice sample from YouTube](#get-a-voice-sample-from-youtube)
 - [Make an audiobook](#make-an-audiobook)
 - [How long will it take?](#how-long-will-it-take)
 - [All options](#all-options)
 - [Tips for a good voice clone](#tips-for-a-good-voice-clone)
-- [If something goes wrong](#if-something-got-wrong)
+- [If something goes wrong](#if-something-goes-wrong)
 - [How this is put together](#how-this-is-put-together)
 - [Please use this responsibly](#please-use-this-responsibly)
 
@@ -34,6 +36,7 @@ Everything is downloaded for you. There is nothing to configure.
 | | |
 |---|---|
 | **Required** | Python 3.10 or newer, [ffmpeg](https://ffmpeg.org/download.html), ~4 GB of disk space, internet access for the first run |
+| **Needed too** | A 5–10 second recording of the voice you want to clone (see [Get a voice to clone](#get-a-voice-to-clone)) |
 | **Optional** | An NVIDIA or Apple GPU. Without one it still works, just much more slowly. |
 
 `ffmpeg` is the one thing `setup.sh` cannot install for you, because it is a
@@ -96,56 +99,39 @@ Models
 
 ---
 
-## Your first audio clip
+## Get a voice to clone
 
-You do not need a voice sample to start. Two ready-made ones ship in `voices/`:
+F5-TTS clones a voice from 5–10 seconds of clean speech. The voice has to be
+yours, or belong to someone who has agreed to it being used. Two ways to get a
+good recording:
 
-```bash
-./run.sh -t "Hello, this is a test of the system." -o hello.wav
-```
+| | What you need | Commands shown below |
+|---|---|---|
+| **From YouTube** | A video where one person talks to camera with no music | `./get_voice_sample.sh` |
+| **Your own recording** | A phone voice memo, 5–10 s, no background noise | nothing extra |
 
-The script works out what is said in the voice sample on its own, then reads
-your text aloud in that voice. See the other samples with:
+Let the script work out what the sample says on its own, or tell it with `-r`
+(see [Your first audio clip](#your-first-audio-clip)).
 
-```bash
-./run.sh --list-voices
-```
+### From a YouTube video
 
----
+The helper script pulls exactly 5–10 seconds out of a YouTube video for you.
 
-## Get a voice sample from YouTube
+**1. Find a timestamp.** Open the video on YouTube and note the moment you want
+— somewhere the host is talking clearly. Most videos have a transcript: click
+**…more** under the video, then **Show transcript**, and scroll to a section
+with real sentences. Click a line to jump to that timestamp, then note the time.
 
-F5-TTS clones a voice from 5–10 seconds of clean speech. The helper script pulls
-exactly that much out of a YouTube video for you.
-
-### 1. Find a timestamp
-
-Open the video on YouTube and note the moment you want — somewhere the host is
-talking to camera with no music or applause. Good places to look: the middle of
-the intro, or a segment where someone reads a sentence.
-
-Most YouTube videos have a transcript. Click **…more** under the video, then
-**Show transcript**, and scroll to a section with real sentences rather than
-introductions. Click a line to jump to that timestamp, then note the time.
-
-Pick a window of about 8 seconds.
-
-### 2. Run the script
+**2. Run the script:**
 
 ```bash
 ./get_voice_sample.sh "https://www.youtube.com/watch?v=VIDEO_ID" 1:30 1:38 my_voice.wav
 ```
 
-Times can be written as `90`, `1:30` or `00:01:30` — pick whichever matches what
-YouTube shows you. The first run installs `yt-dlp` for you if it is missing.
+Times can be written as `90`, `1:30` or `00:01:30`. The first run installs
+`yt-dlp` for you if it is missing.
 
-### 3. Check it worked
-
-```bash
-./run.sh --list-voices
-```
-
-Your new `my_voice.wav` is not in that folder, so check it directly:
+**3. Try it:**
 
 ```bash
 ./run.sh -t "This is a test of my cloned voice." -v my_voice.wav -o test.wav
@@ -154,14 +140,39 @@ Your new `my_voice.wav` is not in that folder, so check it directly:
 Open `test.wav` and listen. If it sounds right, you are ready to narrate
 anything.
 
-### 4. Optional: skip the automatic transcription
+### From your own recording
 
-The script listens to your sample with Whisper to work out what it says. If it
-mishears something, tell it the truth instead — this is the single biggest
-quality win available to you:
+Record 5–10 seconds of someone speaking normally (a phone voice memo is
+perfect), no music or background noise. Any of `.wav`, `.flac`, `.ogg`,
+`.mp3` or `.m4a` works:
 
 ```bash
-./run.sh -f book.epub -v my_voice.wav -r "The exact words spoken in my sample." -o book.m4b
+./run.sh -t "Hello there" -v ~/Downloads/my_voice.m4a -o hello.wav
+```
+
+If you use `-v` with just a file name, the file is looked for in `voices/` —
+so dropping your recordings there lets you say `-v my_voice.wav` anywhere, and
+`./run.sh --list-voices` shows what you have.
+
+Remember: **only clone voices you have permission to use.** See
+[Please use this responsibly](#please-use-this-responsibly).
+
+---
+
+## Your first audio clip
+
+```bash
+./run.sh -t "Hello, this is a test of the system." -v my_voice.wav -o hello.wav
+```
+
+The script works out what is said in the voice sample on its own, then reads
+your text aloud in that voice.
+
+If it mishears your sample, tell it the truth instead — this is the single
+biggest quality win available to you:
+
+```bash
+./run.sh -t "Hello there" -v my_voice.wav -o hello.wav -r "The exact words spoken in my sample."
 ```
 
 ---
@@ -171,7 +182,7 @@ quality win available to you:
 ### 1. Look before you leap
 
 Generation takes a long time, so preview the plan first. This is instant and
-downloads nothing:
+downloads nothing (it does not even need your voice sample):
 
 ```bash
 ./run.sh -f "my book.epub" -o book.m4b --dry-run
@@ -197,15 +208,17 @@ If the chapters or the time estimate look wrong, adjust before you start:
 ./run.sh -f "my book.epub" -o book.m4b --dry-run --start-chapter 3
 
 # Only the first two chapters, to check quality
-./run.sh -f "my book.epub" -o book.m4b --max-chapters 2 --yes
+./run.sh -f "my book.epub" -o book.m4b -v my_voice.wav --max-chapters 2 --yes
 ```
 
 Always test a couple of chapters before committing to the whole book.
 
 ### 2. Generate it
 
+Add your voice sample and go:
+
 ```bash
-./run.sh -f "my book.epub" -o book.m4b
+./run.sh -f "my book.epub" -o book.m4b -v my_voice.wav
 ```
 
 You will be asked to confirm once it knows how long the job is. Progress looks
@@ -240,7 +253,7 @@ play the `.m4b`.
 Press `Ctrl+C` whenever you like, then pick up exactly where you left off:
 
 ```bash
-./run.sh -f "my book.epub" -o book.m4b --resume
+./run.sh -f "my book.epub" -o book.m4b -v my_voice.wav --resume
 ```
 
 `--resume` reuses every chunk already generated and only makes the missing
@@ -256,6 +269,8 @@ ones, so a crash or a reboot costs you nothing.
   a smaller MP3, `-o book.wav` gives chapter WAVs only.
 - **Add a title** to the file with `--book-title "My Book"`.
 - **Speed** it up or down for the whole book with `--speed 1.1`.
+- The same voice narrates the whole book. A different book? Re-run with a new
+  `-v`.
 
 ---
 
@@ -266,8 +281,8 @@ speech):
 
 | | Speed | A 10-hour book |
 |---|---|---|
-| NVIDIA GPU | ~3.5 s / chunk | ~1.5 hours |
-| CPU only | ~2.3 min / chunk | ~5 days |
+| NVIDIA GPU | ~3.5 s / chunk | ~6 hours |
+| CPU only | ~2.3 min / chunk | ~9 days |
 
 The text is generated in small pieces and stitched together, so the cost scales
 with the length of the book. A chapter is 3000 characters by default, so
@@ -297,14 +312,14 @@ Run `./run.sh --help` for the same list.
 | `-f`, `--input-file FILE` | Narrate this book (`.epub`, `.pdf`, `.md`, `.txt`) |
 | `--dry-run` | Show the plan and time estimate, generate nothing |
 | `--doctor` | Check the installation |
-| `--list-voices` | List the bundled voice samples |
+| `--list-voices` | List the voice samples in `voices/` |
 | `--version` | Print the version |
 
 ### Voice
 
 | Flag | Meaning |
 |---|---|
-| `-v`, `--voice FILE` | Voice sample to clone (WAV/FLAC/OGG/MP3). Defaults to a bundled sample |
+| `-v`, `--voice FILE` | The voice to clone (WAV/FLAC/OGG/MP3). A file in `voices/` can be given by name, otherwise a path |
 | `-r`, `--ref-text TEXT` | The exact words in the sample. Detected automatically if omitted |
 | `--speed FLOAT` | Speech speed, `0.8` is slower and `1.2` faster (default `1.0`) |
 | `--no-remove-silence` | Keep the pauses instead of tightening them |
@@ -353,19 +368,16 @@ Run `./run.sh --help` for the same list.
    perfect, and a wrong reference text is the most common cause of a poor clone.
 5. **A GPU helps a lot** — not for quality, but for how long you wait.
 
-You can also use your own recording instead of YouTube. Any of `.wav`,
-`.flac`, `.ogg` or `.mp3` works, including a phone voice memo:
-
-```bash
-./run.sh -f book.epub -v ~/Downloads/my_voice.m4a -o book.m4b
-```
-
 ---
 
 ## If something goes wrong
 
 **`./run.sh --doctor` is the first thing to try.** It names what is
 missing and how to fix it.
+
+**"no voice sample was given"** — the tool needs a recording of the voice to
+clone. Follow [Get a voice to clone](#get-a-voice-to-clone) and pass it with
+`-v`, or drop it into `voices/`.
 
 **"ffmpeg is required"** — install it, see [What you need](#what-you-need).
 
@@ -381,9 +393,10 @@ yourself with `-r "..."`.
 **The audio contains the words of my sample, or odd noises** — the reference
 text is wrong. Re-run with `-r` and the exact words.
 
-**It is very slow** — you are probably on CPU. Check with `./run.sh --doctor`;
-if it says `GPU not detected`, try installing PyTorch for your GPU with
-`./setup.sh --cuda`.
+**It is very slow** — you are probably on CPU, where the model runs about 20×
+slower than real time (see [How long will it take?](#how-long-will-it-take)).
+Check with `./run.sh --doctor`; if it says `GPU not detected`, try installing
+PyTorch for your GPU with `./setup.sh --cuda`.
 
 **`error: externally-managed-environment`** — you installed into the system
 Python by mistake. Use `./run.sh`, which uses the private `.venv`.
@@ -396,21 +409,20 @@ use `--resume`, and consider running only part of the book with
 
 ## How this is put together
 
-To share this, send the whole folder. It is about 700 KB before setup; the
-models download afterwards and are shared by every copy in the same
-`.venv`/`f5_model` location.
+To share this, send the whole folder — it is under a megabyte before setup.
+The models download afterwards.
 
 | File | Role |
 |---|---|
 | `setup.sh` | Installs dependencies and downloads the models |
 | `run.sh` | Launcher; runs setup automatically if it has not been run |
-| `get_voice_sample.sh` | Pulls a clip out of a YouTube video |
+| `get_voice_sample.sh` | Pulls a 5–10 s voice sample out of a YouTube video |
 | `cli.py` | The command line tool: doctor, chapter splitting, audio assembly |
 | `models.py` | Finds and downloads the F5-TTS, Whisper and Vocos models |
 | `tts.py` | Wraps the F5-TTS engine; audio conversion helpers |
 | `text_processing.py` | Sentence splitting and text cleanup |
 | `file_processing.py` | Reads PDF/EPUB/MD/TXT and finds their chapters |
-| `voices/` | Ready-made voice samples, so the tool works with no setup |
+| `voices/` | Your voice samples go here; the tool ships none |
 | `f5_model/` | Created on first run: the F5-TTS checkpoint (~1.3 GB) |
 | `.venv/` | Created on first run: the Python environment |
 | `.cache/` | Created on first run: prepared voice clips and transcripts |

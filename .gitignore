@@ -10,7 +10,6 @@ f5_model/
 
 # Generated audio
 *.wav
-!voices/*.wav
 *_chapters/
 chunks/
 output.wav
@@ -23,8 +22,13 @@ source.*
 .*_concat.txt
 .*_chapters.txt
 
-# User's own books
+# User's own books and voice samples
 ebooks
+voices/*.wav
+voices/*.flac
+voices/*.ogg
+voices/*.mp3
+voices/*.m4a
 
 # Stray Windows metadata from zipped downloads
 *:Zone.Identifier

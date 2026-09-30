@@ -164,9 +164,10 @@ fi
 banner
 echo "Setup complete."
 echo ""
-echo "Try it out:"
-echo "  ./run.sh -t \"Hello, this is a test.\" -o hello.wav"
+echo "Get a voice to clone (yours, or someone who agreed to it), then try it:"
+echo "  ./get_voice_sample.sh \"https://www.youtube.com/watch?v=VIDEO_ID\" 1:30 1:38 my_voice.wav"
+echo "  ./run.sh -t \"Hello, this is a test.\" -v my_voice.wav -o hello.wav"
 echo ""
 echo "Make an audiobook:"
-echo "  ./run.sh -f mybook.epub -o mybook.m4b"
+echo "  ./run.sh -f mybook.epub -v my_voice.wav -o mybook.m4b"
 echo ""
